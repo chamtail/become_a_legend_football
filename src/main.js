@@ -73,6 +73,7 @@
     }
 
     UI.screenEl = document.getElementById('screen');
+    St.load();            /* 有存档就先读进内存，主菜单才能显示生涯概况 */
     UI.go('menu');
   }
 

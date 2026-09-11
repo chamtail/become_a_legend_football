@@ -272,6 +272,37 @@ if (St.S) {
   UIrender('retire');
 }
 
+/* ---------- 4. 回归：localStorage 里有存档、但内存里还没载入 ---------- */
+/* 之前的 bug：主菜单用 hasSave()（只看有没有 key）判断，然后直接读 St.S.player，
+   刷新页面时 boot() 没有先 load()，St.S 是 null —— 一刷新就崩。 */
+(function menuRegression() {
+  const LS = sandbox.localStorage, KEY = 'bl_save_v1';
+  St.newGame({ name: '旧档', pos: 'ST', attrs: { shooting: 60, passing: 60, dribbling: 60, defending: 60, pace: 60, physical: 60 }, clubId: 'gron' });
+  if (!LS.getItem(KEY)) { fail('回归/存档', 'newGame 没有写入 localStorage(' + KEY + ')'); return; }
+
+  /* A. 刷新：localStorage 有档，内存里没有 */
+  St.S = null;
+  try { UI.go('menu'); } catch (e) { fail('回归/刷新后主菜单', e); }
+
+  /* B. boot 里先 load 再渲染，应出现「继续生涯」 */
+  St.S = null;
+  if (!St.load()) fail('回归/load', '合法存档读取失败');
+  try {
+    const node = UI.screens.menu();
+    if (String(node.innerHTML).indexOf('继续生涯') < 0) fail('回归/继续生涯', '未渲染出「继续生涯」按钮');
+  } catch (e) { fail('回归/载入后主菜单', e); }
+
+  /* C. 存档损坏：hasSave 必须为 false，菜单不能崩 */
+  LS.setItem(KEY, '{这不是合法JSON');
+  St.S = null;
+  if (St.hasSave()) fail('回归/hasSave', '损坏的存档仍返回 true');
+  try { UI.go('menu'); } catch (e) { fail('回归/损坏存档主菜单', e); }
+
+  /* D. 没有生涯数据时访问其它界面，应被安全网挡回主菜单 */
+  try { UI.go('hub'); } catch (e) { fail('回归/安全网', e); }
+  if (UI.cur.name !== 'menu') fail('回归/安全网', 'St.S 为 null 时未回退到主菜单，当前=' + UI.cur.name);
+})();
+
 /* ---------- 输出 ---------- */
 console.log('=== 小游戏 ===');
 console.log('场景结算次数: ' + sceneCount + '  失败 ' + quality[0] + ' / 成功 ' + quality[1] + ' / 精彩 ' + quality[2]);

@@ -77,6 +77,11 @@ window.BL = window.BL || {};
   UI.render = function () {
     UI.screenEl = document.getElementById('screen');
     UI.topbar();
+    /* 安全网：没有生涯数据时，只有主菜单和创建页可以直接渲染，
+       其余界面（被刷新、存档读取失败、旧存档损坏等）一律退回主菜单 */
+    if (!St.S && UI.cur.name !== 'menu' && UI.cur.name !== 'create') {
+      UI.cur = { name: 'menu', params: {} };
+    }
     var fn = UI.screens[UI.cur.name] || UI.screens.menu;
     UI.screenEl.innerHTML = '';
     var node = fn(UI.cur.params);
@@ -104,6 +109,9 @@ window.BL = window.BL || {};
   /* ================= 主菜单 ================= */
   UI.screens.menu = function () {
     UI.setHint('用鼠标或手指在球场上划出轨迹 —— 射门、传球、盘带、防守');
+    /* 以内存中的生涯数据为准：hasSave() 只看 localStorage 里有没有 key，
+       若存档读取失败或格式损坏，两者会不一致，直接读 St.S.player 就会崩 */
+    var p = St.S ? St.S.player : null;
     var h = [];
     h.push('<div class="panel center" style="padding:26px 14px">');
     h.push('<div style="font-size:44px;letter-spacing:10px;color:#57cc72;text-shadow:4px 4px 0 #08240f, 0 0 22px rgba(87,204,114,.35)">成为传奇</div>');
@@ -113,7 +121,7 @@ window.BL = window.BL || {};
 
     h.push('<div class="grid2">');
     h.push('<div class="panel"><div class="panel-title">生涯</div><div class="btn-col">');
-    if (St.hasSave()) {
+    if (p) {
       h.push('<button class="btn primary wide" data-act="continue">继续生涯</button>');
       h.push('<button class="btn wide" data-act="new">重新开始</button>');
     } else {
@@ -123,8 +131,7 @@ window.BL = window.BL || {};
     h.push('</div></div>');
 
     h.push('<div class="panel"><div class="panel-title">数据</div>');
-    if (St.hasSave()) {
-      var p = St.S.player;
+    if (p) {
       h.push('<div class="dim2">存档：' + UI.esc(p.name) + ' · ' + St.club().name + ' · 第' + St.S.seasonNo + '赛季</div>');
       h.push('<div class="dim2 mt6">年龄 ' + p.age + ' ｜ 综合 ' + St.overall() + ' ｜ 生涯出场 ' + St.S.career.apps + ' ｜ 进球 ' + St.S.career.goals + '</div>');
       var hs = St.S.career.honors.slice(-4).map(function (x) { return x.name; }).join('、');
@@ -140,14 +147,15 @@ window.BL = window.BL || {};
       if (!b) return;
       var act = b.getAttribute('data-act');
       if (act === 'new') {
-        if (St.hasSave()) {
+        if (St.S || St.hasSave()) {
           UI.modal({ title: '重新开始', body: '<p>当前存档将被覆盖，确定吗？</p>', actions: [
             { label: '确定覆盖', cls: 'danger', onClick: function () { St.wipe(); UI.go('create'); } },
             { label: '取消', cls: '' }
           ] });
         } else UI.go('create');
       } else if (act === 'continue') {
-        if (St.load()) UI.go('hub'); else UI.toast('读取存档失败', 'bad');
+        if (St.S || St.load()) UI.go('hub');
+        else { UI.toast('读取存档失败，已清除损坏的存档', 'bad'); St.wipe(); UI.go('menu'); }
       } else if (act === 'how') {
         UI.modal({
           title: '玩法说明', body:

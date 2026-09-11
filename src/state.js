@@ -521,16 +521,42 @@ window.BL = window.BL || {};
       try { localStorage.setItem(SAVE_KEY, JSON.stringify(St.S)); } catch (e) { /* file:// 下可能不可用 */ }
     },
     hasSave: function () {
-      try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+      /* 不能只看有没有 key：损坏的存档会让 hasSave() 与 load() 结果不一致 */
+      try {
+        var raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        var s = JSON.parse(raw);
+        return !!(s && s.player && s.player.attrs);
+      } catch (e) { return false; }
     },
     load: function () {
       try {
         var raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return false;
         var s = JSON.parse(raw);
-        if (!s || !s.player) return false;
+        if (!s || !s.player || !s.player.attrs) return false;
+        /* 补齐可能缺失的字段：旧版本存档在新版本里也能正常载入，
+           否则刷新后会因为读不到字段而报错 */
+        if (!s.season) s.season = St.emptySeason();
+        if (!s.career) s.career = { apps: 0, goals: 0, assists: 0, ratingSum: 0, ratings: 0, honors: [], seasons: 0 };
+        s.career.honors = s.career.honors || [];
+        s.honors = s.honors || [];
+        s.history = s.history || [];
+        s.log = s.log || [];
+        s.week = s.week || 1;
+        s.seasonNo = s.seasonNo || 1;
+        s.roundIndex = s.roundIndex || 0;
+        s.weekDone = !!s.weekDone;
+        s.player.upgrades = s.player.upgrades || {};
+        s.player.weeksOut = s.player.weeksOut || 0;
+        s.player.look = s.player.look || { skin: '#e8b48a', hair: '#2a1d16' };
+        BL.ATTRS.forEach(function (a) {
+          if (typeof s.player.attrs[a.key] !== 'number') s.player.attrs[a.key] = 40;
+        });
+        if (!s.player.pos || !BL.POSITIONS[s.player.pos]) s.player.pos = 'ST';
+        if (!BL.CLUB_MAP[s.player.clubId]) return false;   /* 认不出俱乐部，视为坏档 */
         St.S = s;
-        if (!s.league) St.makeLeague();
+        if (!s.league || !s.league.teams || !s.fixtures) St.makeLeague();
         return true;
       } catch (e) { return false; }
     },
