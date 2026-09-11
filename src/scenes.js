@@ -82,8 +82,11 @@ window.BL = window.BL || {};
       Run.running = false;
       if (Run.raf) cancelAnimationFrame(Run.raf);
       Run.raf = null;
-      if (Run.canvas) Run.unbind(Run.canvas);
       var h = Run.hooks, s = Run.scene;
+      /* 关键：补画最后一帧。此时 phase 已是 done，结算横幅不再绘制，
+         玩家点完「继续」能立刻看到横幅消失，不会以为没点上而重复点击 */
+      if (s) { try { Run.renderOnce(s); } catch (e) {} }
+      if (Run.canvas) Run.unbind(Run.canvas);
       Run.scene = null;
       if (h && h.onDone) h.onDone(res, s);
     },
@@ -93,21 +96,25 @@ window.BL = window.BL || {};
       if (!Run.last) Run.last = ts;
       var dt = Math.min(0.05, (ts - Run.last) / 1000);
       Run.last = ts; Run.time += dt;
-      var sc = Run.scene, g = Run.g;
+      var sc = Run.scene;
       if (!sc) return;
       if (sc.update) sc.update(dt, Run.time);
+      Run.renderOnce(sc);
+      Run.raf = requestAnimationFrame(Run.frame);
+    },
+
+    /* 画一帧：世界层与 UI 层都按 SCALE 倍渲染 */
+    renderOnce: function (sc) {
+      var g = Run.g;
+      if (!g || !sc) return;
       var S = P.SCALE;
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.clearRect(0, 0, P.CW * S, P.CH * S);
-      /* 世界层：SCALE 倍渲染 + 视野偏移，逻辑坐标完全不变 */
-      g.setTransform(S, 0, 0, S, -P.VX * S, -P.VY * S);
+      g.setTransform(S, 0, 0, S, -P.VX * S, -P.VY * S);   /* 世界层：倍率 + 视野偏移 */
       if (sc.draw) sc.draw(g, Run.time);
-      /* UI 层：同样 SCALE 倍，但不偏移，继续用 200x124 的 UI 坐标，
-         于是计时条 / 结算横幅 / 提示文字也自动变成高分辨率 */
-      g.setTransform(S, 0, 0, S, 0, 0);
+      g.setTransform(S, 0, 0, S, 0, 0);                   /* UI 层：倍率，不偏移 */
       if (sc.drawOverlay) sc.drawOverlay(g, Run.time);
       g.setTransform(1, 0, 0, 1, 0, 0);
-      Run.raf = requestAnimationFrame(Run.frame);
     },
 
     toLocal: function (e) {
@@ -170,8 +177,15 @@ window.BL = window.BL || {};
       s.result = res; s.phase = 'result'; s.resultT = 0;
       s.hold = res.quality >= 1 ? 1.35 : 1.7;
     };
+    /* 立即结束结算横幅（点一下就走，不等下一帧） */
+    s.skipResult = function () {
+      if (s.phase !== 'result') return;
+      var r = s.result;
+      s.phase = 'done';
+      if (s.api) s.api.done(r);
+    };
     s.onDown = function (pt) {
-      if (s.phase === 'result') { s.resultT = 99; return; }
+      if (s.phase === 'result') { s.skipResult(); return; }
       if (s.phase !== 'draw') return;
       if (!s.started) {
         /* 起点必须靠近球 */
@@ -203,7 +217,7 @@ window.BL = window.BL || {};
         if (s.drawT >= s.timeLimit && s.onTimeout) s.onTimeout();
       } else if (s.phase === 'result') {
         s.resultT += dt;
-        if (s.resultT >= s.hold) { var r = s.result; s.phase = 'done'; s.api.done(r); }
+        if (s.resultT >= s.hold) s.skipResult();
       }
     };
     s.drawTimer = function (g) {
@@ -238,272 +252,6 @@ window.BL = window.BL || {};
         P.text(g, '按住这里起手', s.ball.x, s.ball.y - 20, '#ffe066', 6.5, 'center');
       }
       if (s.startWarn > 0) P.text(g, '起手要靠近球！', s.ball.x, s.ball.y - 20, '#ff7b7b', 8, 'center');
-    };
-    return s;
-  };
-
-  /* ---------------- 射门 ---------------- */
-  S.buildShoot = function (cfg) {
-    var skill = cfg.skill, diff = cfg.diff;
-    var ball = cfg.ball || { x: U.rnd(148, 184), y: U.rnd(46, 114) };
-    var s = S.Base({
-      type: 'shoot', title: '射门机会', attr: 'shooting',
-      diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.5 + skill * 1.5, tip: '从球出发划出射门轨迹，终点落在黄圈内'
-    });
-    s.ball = ball;
-    s.keeper = { x: 239, y: 80, amp: 15 + diff * 7, spd: 0.9 + diff * 1.1, ph: U.rnd(0, 6), diveY: 80, dived: false, reach: 0 };
-    var top = U.rnd() < 0.5;
-    s.target = { x: 244, y: top ? U.rnd(59, 71) : U.rnd(89, 101), r: 13 };
-    var mid = { x: (ball.x + s.target.x) / 2, y: (ball.y + s.target.y) / 2 };
-    var dx = s.target.x - ball.x, dy = s.target.y - ball.y;
-    var L = Math.sqrt(dx * dx + dy * dy) || 1;
-    var px = -dy / L, py = dx / L;
-    var k = U.rnd(12, 24);
-    var c1 = { x: mid.x + px * k, y: mid.y + py * k };
-    var c2 = { x: mid.x - px * k, y: mid.y - py * k };
-    /* 让弧线绕开门将 */
-    var kAt = 80;
-    var d1 = Math.abs(c1.y - kAt), d2 = Math.abs(c2.y - kAt);
-    s.ideal = P.quad(ball, d1 > d2 ? c1 : c2, s.target, 26);
-    s.guide = S.head(s.ideal, S.guideFrac(skill, diff));
-    s.defender = { x: ball.x + U.rnd(26, 44), y: U.clamp(ball.y + U.rnd(-26, 26), 30, 130) };
-    s.ballAnim = null;
-
-    s.onTimeout = function () { s.finish({ quality: 0, text: '犹豫太久，机会溜走了', detail: '对手回防到位' }); };
-
-    s.onRelease = function () {
-      var tolEnd = S.tolEnd(skill, diff), tolPath = S.tolPath(skill, diff);
-      var j = S.judge(s.pts, s.ideal, tolEnd, tolPath);
-      var end = s.pts[s.pts.length - 1];
-      var len = P.len(s.pts);
-
-      if (len < 26) { s.finish({ quality: 0, text: '划动太短，球没踢出去', detail: '从球的位置向后拉出轨迹' }); return; }
-
-      /* 门将判断方向：猜对边才有机会扑到 */
-      var read = U.clamp(0.08 + diff * 0.40 - skill * 0.40, 0.03, 0.70);
-      var side = end.y < 80 ? -1 : 1;                    /* -1 上角 / +1 下角 */
-      var sloppy = j.pathScore < 0.34 || j.ratio < 0.55;
-      var correct = Math.random() < (sloppy ? Math.min(0.85, read * 2.2 + 0.15) : read);
-      if (sloppy) reach0 = 1.25;
-      var diveY = correct
-        ? U.clamp(end.y + U.rnd(-13, 13), P.GOAL_TOP + 1, P.GOAL_BOT - 1)
-        : (side > 0 ? P.GOAL_TOP + 5 : P.GOAL_BOT - 5);
-      var reach0 = 1;
-      var reach = U.clamp(11 + diff * 4 - skill * 4, 6, 19) * reach0;
-
-      /* 完全偏出球门 */
-      var offTarget = end.y < P.GOAL_TOP - 3 || end.y > P.GOAL_BOT + 3 || end.x < P.LINE - 16;
-      var miss = offTarget || j.endErr > tolEnd * 1.9;
-      var saved = !miss && correct && Math.abs(end.y - diveY) < reach;
-
-      s.ballAnim = { pts: s.pts, t: 0, dur: U.clamp(len / 300, 0.22, 0.55) };
-      s.keeper.diveY = diveY; s.keeper.dived = true; s.keeper.reach = reach;
-      s.outcome = miss ? 'miss' : saved ? 'save' : 'goal';
-      s.judgeRes = j;
-    };
-
-    s.update = function (dt) {
-      s.tick(dt);
-      if (!s.keeper.dived) {
-        s.keeper.y = 80 + Math.sin(s.t * s.keeper.spd + s.keeper.ph) * s.keeper.amp;
-      } else {
-        s.keeper.y += (s.keeper.diveY - s.keeper.y) * Math.min(1, dt * 12);
-      }
-      if (s.ballAnim && s.phase === 'draw') {
-        s.ballAnim.t += dt;
-        if (s.ballAnim.t >= s.ballAnim.dur) {
-          s.ballAnim = null;
-          var j = s.judgeRes;
-          if (s.outcome === 'goal') {
-            var q = j.total >= 0.70 ? 2 : 1;
-            s.finish({ quality: q, text: '球进了！！', detail: q >= 2 ? '世界波！门将毫无办法' : '干脆利落的射门', outcome: 'goal' });
-          } else if (s.outcome === 'save') {
-            s.finish({ quality: 0, text: '被门将扑出', detail: '射门太正 / 力量不足', outcome: 'save' });
-          } else {
-            s.finish({ quality: 0, text: '射偏了', detail: '终点要落在光标圈内', outcome: 'miss' });
-          }
-        }
-      }
-    };
-
-    s.draw = function (g) {
-      P.pitch(g);
-      /* 门将 */
-      var kx = s.keeper.x, ky = s.keeper.y;
-      g.strokeStyle = 'rgba(255,120,120,0.35)'; g.lineWidth = 1;
-      g.beginPath(); g.arc(kx - 4, ky, s.keeper.dived ? s.keeper.reach : 12, 0, Math.PI * 2); g.stroke();
-      P.player(g, kx, ky, ['#ffd166', '#2b3a49'], { skin: '#e8b48a', hair: '#3a2a1a', dir: -1, frame: 0 });
-      P.text(g, 'GK', kx - 12, ky + 10, '#ffd166', 7);
-
-      /* 防守球员 */
-      P.player(g, s.defender.x, s.defender.y, s.oppKit, { skin: '#c98d5e', hair: '#1d1410', dir: -1, frame: 1 });
-
-      /* 目标圈与指引 */
-      P.zone(g, s.target.x, s.target.y, s.target.r, '#ffe066', s.t, true);
-      if (s.phase === 'draw' && !s.started) P.dashed(g, s.guide, '#ffe066', 4, 0.8);
-      else if (s.phase === 'draw') P.dashed(g, s.guide, '#ffe066', 4, 0.35);
-
-      /* 球与球员 */
-      if (!s.ballAnim) P.ball(g, s.ball.x, s.ball.y, 3);
-      P.player(g, s.ball.x - 9, s.ball.y + 5, s.kit, { skin: s.skin, hair: s.hair, dir: 1, frame: Math.floor(s.t * 6) });
-      if (s.ballAnim) P.ball(g, P.pointAt(s.ballAnim.pts, P.len(s.ballAnim.pts) * (s.ballAnim.t / s.ballAnim.dur)).x,
-                                 P.pointAt(s.ballAnim.pts, P.len(s.ballAnim.pts) * (s.ballAnim.t / s.ballAnim.dur)).y, 3);
-
-      if (s.pts.length > 1) P.trail(g, s.pts, { color: '#ffffff', glow: 'rgba(120,220,255,0.30)', width: 2, dots: true });
-      s.drawStartHint(g);
-    };
-    return s;
-  };
-
-  /* ---------------- 传球 ---------------- */
-  S.buildPass = function (cfg) {
-    var skill = cfg.skill, diff = cfg.diff;
-    var ball = cfg.ball || { x: U.rnd(112, 150), y: U.rnd(48, 112) };
-    var s = S.Base({
-      type: 'pass', title: '传球选择', attr: 'passing',
-      diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.3 + skill * 1.4, tip: '划出传球路线，终点落在蓝色接球圈'
-    });
-    s.ball = ball;
-
-    /* 队友 */
-    var ys = U.shuffle([U.rnd(30, 48), U.rnd(66, 92), U.rnd(110, 132)]);
-    s.mates = [];
-    for (var i = 0; i < 3; i++) {
-      s.mates.push({ x: U.rnd(178, 238), y: ys[i], vx: U.rnd(-5, 9), vy: U.rnd(-7, 7), num: i });
-    }
-    /* 防守球员 */
-    s.opps = [];
-    var nd = 2 + (diff > 0.72 ? 1 : 0);
-    for (var j = 0; j < nd; j++) {
-      s.opps.push({ x: U.rnd(ball.x + 26, 226), y: U.rnd(32, 128), vy: U.rnd(-9, 9), vx: U.rnd(-4, 4) });
-    }
-    /* 选最空的队友作为目标 */
-    var best = 0, bestScore = -1;
-    s.mates.forEach(function (m, idx) {
-      var clear = 999;
-      s.opps.forEach(function (o) { clear = Math.min(clear, P.dist(m, o)); });
-      clear += (m.x - 178) * 0.28;
-      if (clear > bestScore) { bestScore = clear; best = idx; }
-    });
-    s.targetIdx = best;
-    s.target = s.mates[best];
-    s.leadTime = 0.6;
-    s.moving = true;
-
-    s.buildIdeal = function () {
-      var end = { x: U.clamp(s.target.x + s.target.vx * s.leadTime, 10, P.LINE - 4), y: U.clamp(s.target.y + s.target.vy * s.leadTime, 8, P.H - 8) };
-      var nearest = null, nd2 = 1e9;
-      s.opps.forEach(function (o) {
-        var d = P.distToSeg(o, ball, end);
-        if (d < nd2) { nd2 = d; nearest = o; }
-      });
-      var mid = { x: (ball.x + end.x) / 2, y: (ball.y + end.y) / 2 };
-      var dx = end.x - ball.x, dy = end.y - ball.y, L = Math.sqrt(dx * dx + dy * dy) || 1;
-      var px = -dy / L, py = dx / L;
-      var k = U.clamp(16 - nd2 * 0.25, 0, 16);
-      var c1 = { x: mid.x + px * k, y: mid.y + py * k }, c2 = { x: mid.x - px * k, y: mid.y - py * k };
-      var use = nearest ? (P.dist(c1, nearest) > P.dist(c2, nearest) ? c1 : c2) : c1;
-      s.ideal = P.quad(ball, use, end, 24);
-      s.guide = S.head(s.ideal, S.guideFrac(skill, diff));
-      s.idealEnd = end;
-    };
-    s.buildIdeal();
-
-    s.onTimeout = function () { s.finish({ quality: 0, text: '出球太慢，被逼抢了', detail: '快速做出选择' }); };
-
-    s.onRelease = function () {
-      var tolEnd = S.tolEnd(skill, diff), tolPath = S.tolPath(skill, diff);
-      var end = s.pts[s.pts.length - 1];
-      var len = P.len(s.pts);
-      if (len < 24) { s.finish({ quality: 0, text: '划动太短，球没传出去', detail: '' }); return; }
-
-      /* 找最近的队友 */
-      var pick = null, pd = 1e9;
-      s.mates.forEach(function (m, idx) { var d = P.dist(end, m); if (d < pd) { pd = d; pick = idx; } });
-      var rightMan = pick === s.targetIdx;
-
-      /* 传球路线是否被挡 */
-      var minDef = 1e9;
-      s.opps.forEach(function (o) { minDef = Math.min(minDef, P.distToPath(o, s.pts)); });
-
-      var idealFor = rightMan ? s.ideal : (function () {
-        var m = s.mates[pick];
-        return P.quad(ball, { x: (ball.x + m.x) / 2, y: (ball.y + m.y) / 2 }, m, 20);
-      })();
-      var j = S.judge(s.pts, idealFor, tolEnd, tolPath);
-      s.judgeRes = j;
-      s.ballAnim = { pts: s.pts, t: 0, dur: U.clamp(len / 280, 0.2, 0.5) };
-      s.pickIdx = pick;
-      s.minDef = minDef;
-
-      if (pd > 34 && !rightMan) { s.outcome = 'wayward'; }
-      else if (minDef < 9 && j.total < 0.78) { s.outcome = 'intercept'; }
-      else if (!rightMan) { s.outcome = 'wrong'; }
-      else if (j.total >= 0.66 && s.target.x > 192) { s.outcome = 'assist'; }
-      else if (j.total >= 0.42) { s.outcome = 'ok'; }
-      else { s.outcome = 'poor'; }
-      s.moving = false;
-    };
-
-    s.update = function (dt) {
-      s.tick(dt);
-      if (s.moving && s.phase === 'draw') {
-        s.mates.forEach(function (m) {
-          m.x = U.clamp(m.x + m.vx * dt, 172, P.LINE - 6);
-          m.y = U.clamp(m.y + m.vy * dt, 26, P.H - 26);
-          if (m.y <= 26 || m.y >= P.H - 26) m.vy *= -1;
-          if (m.x <= 172 || m.x >= P.LINE - 6) m.vx *= -1;
-        });
-        s.opps.forEach(function (o) {
-          o.x = U.clamp(o.x + o.vx * dt, 150, P.LINE - 8);
-          o.y = U.clamp(o.y + o.vy * dt, 26, P.H - 26);
-          if (o.y <= 26 || o.y >= P.H - 26) o.vy *= -1;
-          if (o.x <= 150 || o.x >= P.LINE - 8) o.vx *= -1;
-        });
-        s.buildIdeal();
-      }
-      if (s.ballAnim) {
-        s.ballAnim.t += dt;
-        if (s.ballAnim.t >= s.ballAnim.dur) {
-          s.ballAnim = null;
-          var j = s.judgeRes, o = s.outcome;
-          if (o === 'assist') s.finish({ quality: 2, text: '助攻！', detail: '一脚穿透防线的直塞', outcome: 'assist' });
-          else if (o === 'ok') s.finish({ quality: 1, text: '传球成功', detail: j.total >= 0.55 ? '漂亮的转移' : '安全出球', outcome: 'pass' });
-          else if (o === 'wrong') s.finish({ quality: 0, text: '传给了被盯死的队友', detail: '绿色标记的队友才是空档', outcome: 'wrong' });
-          else if (o === 'intercept') s.finish({ quality: 0, text: '传球被断', detail: '路线从防守球员脚下穿过', outcome: 'intercept' });
-          else if (o === 'wayward') s.finish({ quality: 0, text: '传球失误，球出界了', detail: '终点要靠近队友', outcome: 'wayward' });
-          else s.finish({ quality: 0, text: '传球质量太差', detail: '轨迹偏离了最佳路线', outcome: 'poor' });
-        }
-      }
-    };
-
-    s.draw = function (g) {
-      P.pitch(g);
-      /* 空档队友高亮 */
-      var tm = s.mates[s.targetIdx];
-      if (s.phase === 'draw') {
-        g.strokeStyle = '#57cc72'; g.lineWidth = 1;
-        g.beginPath(); g.arc(tm.x, tm.y + 2, 13 + Math.sin(s.t * 6) * 1.5, 0, Math.PI * 2); g.stroke();
-        P.text(g, '空档', tm.x - 8, tm.y - 24, '#57cc72', 7);
-      }
-      s.opps.forEach(function (o) { P.player(g, o.x, o.y, s.oppKit, { skin: '#c98d5e', hair: '#1d1410', dir: -1 }); });
-      s.mates.forEach(function (m, i) {
-        P.player(g, m.x, m.y, s.kit, { skin: s.skin, hair: s.hair, dir: -1, frame: Math.floor(s.t * 5 + i) });
-      });
-      if (s.phase === 'draw' && !s.started) P.dashed(g, s.guide, '#7fe0ff', 4, 0.8);
-      else if (s.phase === 'draw') P.dashed(g, s.guide, '#7fe0ff', 4, 0.3);
-      if (s.idealEnd && s.phase === 'draw') P.zone(g, s.idealEnd.x, s.idealEnd.y, 9, '#7fe0ff', s.t, true);
-
-      if (!s.ballAnim) P.ball(g, s.ball.x, s.ball.y, 3);
-      P.player(g, s.ball.x - 9, s.ball.y + 5, s.kit, { skin: s.skin, hair: s.hair, dir: 1, frame: Math.floor(s.t * 6) });
-      if (s.ballAnim) {
-        var pt = P.pointAt(s.ballAnim.pts, P.len(s.ballAnim.pts) * (s.ballAnim.t / s.ballAnim.dur));
-        P.ball(g, pt.x, pt.y, 3);
-      }
-      if (s.pts.length > 1) P.trail(g, s.pts, { color: '#ffffff', glow: 'rgba(120,220,255,0.30)', width: 2 });
-      s.drawStartHint(g);
     };
     return s;
   };

@@ -223,6 +223,13 @@ table.tbl tr.odd td{background:#131c26}
 hr.sep{border:0;border-top:1px dashed var(--line);margin:8px 0}
 .avatar-wrap{display:flex;gap:12px;align-items:center}
 canvas.avatar{width:72px;height:72px;image-rendering:pixelated;border:2px solid var(--line);background:#0a0f14;flex:0 0 auto}
+/* 主操作吸底：长页面里不用滚到底，也避免移动端滑动惯性吃掉第一次点击 */
+.action-bar{
+  position:sticky;bottom:0;z-index:6;
+  padding:8px 0 2px;
+  background:linear-gradient(to top, var(--bg) 55%, rgba(11,15,20,0));
+}
+.action-bar>.panel{margin-bottom:0}
 .fade{animation:fin .18s ease-out}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 

@@ -74,7 +74,7 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-const FILES = ['src/data.js', 'src/pixel.js', 'src/state.js', 'src/scenes.js', 'src/scenes2.js', 'src/match.js', 'src/ui.js', 'src/ui2.js', 'src/main.js'];
+const FILES = ['src/data.js', 'src/pixel.js', 'src/state.js', 'src/scenes.js', 'src/strike.js', 'src/scenes2.js', 'src/match.js', 'src/ui.js', 'src/ui2.js', 'src/main.js'];
 FILES.forEach(function (f) {
   try { vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f }); }
   catch (e) { fail('load ' + f, e); }
@@ -136,6 +136,36 @@ function gestureFor(scene, kind) {
   });
 }
 
+/* 「会玩」的策略：先把弧线造成的横移补偿掉，再点对应的触球点。
+   模拟的是理解了机制的玩家，而不是随便乱点。 */
+function planStrike(scene, kind) {
+  const ball = scene.ball;
+  const R = 28, K = 340, LINE = 246;
+  const speed = scene.type === 'pass' ? 152 : 215;
+  let tx, ty, curve = 0;
+  if (scene.type === 'pass') {
+    const m = scene.mates[scene.targetIdx];
+    tx = m.x; ty = m.y;
+  } else {
+    const ky = scene.keeper ? scene.keeper.y : 80;
+    ty = ky > 80 ? 68 : 92;                 /* 打门将的另一侧，往里收一点留余量 */
+    tx = LINE - 3;
+    curve = kind === 'good' ? (ty < ball.y ? -0.55 : 0.55) : 0;
+  }
+  if (kind === 'wild') {
+    if (scene.type === 'pass') { tx = ball.x + 20; ty = 140; curve = 1.2; }   /* 传球乱来：直接踢向边线 */
+    else { curve = (ball.y > 80 ? 1 : -1) * 1.4; tx = LINE - 3; ty = 80; }
+  }
+  const t = Math.max(0.15, (tx - ball.x) / speed);
+  const disp = 0.5 * K * curve * t * t;     /* 弧线在到达时的横移量 */
+  const aimY = ty - disp;                   /* 方向要提前补偿 */
+  const dx = tx - ball.x, dy = aimY - ball.y;
+  const L = Math.sqrt(dx * dx + dy * dy) || 1;
+  const dir = { x: dx / L, y: dy / L };
+  const perp = { x: -dir.y, y: dir.x };
+  return { dir: dir, off: { x: perp.x * curve * R, y: perp.y * curve * R }, curve: curve };
+}
+
 function runScene(type, diff, attrs, kind) {
   const scene = S.build(type, {
     diff: diff, attrs: attrs, kit: ['#3aa655', '#f2f4f8'], oppKit: ['#e05555', '#141a22'],
@@ -144,17 +174,38 @@ function runScene(type, diff, attrs, kind) {
   let done = null;
   scene.api = { done: function (r) { done = r; }, hint: function () {}, timer: function () {} };
   const g = fakeCtx();
+  const step = function (n) {
+    for (let i = 0; i < n && !done; i++) { scene.update(1 / 60); scene.draw(g, i / 60); scene.drawOverlay && scene.drawOverlay(g, i / 60); }
+  };
   try {
     scene.init && scene.init(fakeCanvas(), g);
     scene.draw(g, 0); scene.drawOverlay && scene.drawOverlay(g, 0);
-    const pts = gestureFor(scene, kind, g);
-    if (pts) {
-      scene.onDown(pts[0]);
-      for (let i = 1; i < pts.length; i++) scene.onMove(pts[i]);
+    if (kind === 'timeout') { step(400); }
+    else if (scene.stage === 'aim') {
+      /* 两段式：① 按「补偿弧线后」的方向划 ② 点对应的触球点 */
+      const plan = planStrike(scene, kind);
+      const b = scene.ball;
+      scene.onDown({ x: b.x, y: b.y });
+      for (let i = 1; i <= 12; i++) {
+        const t = i / 12 * 60;
+        scene.onMove({ x: b.x + plan.dir.x * t, y: b.y + plan.dir.y * t });
+      }
       scene.onUp();
-      for (let i = 0; i < 400 && !done; i++) { scene.update(1 / 60); scene.draw(g, i / 60); scene.drawOverlay && scene.drawOverlay(g, i / 60); }
+      step(2);
+      /* ② 点触球点 */
+      if (scene.stage === 'touch') {
+        const c = scene.motionPos();
+        scene.onDown({ x: c.x + plan.off.x, y: c.y + plan.off.y });
+      }
+      step(400);
     } else {
-      for (let i = 0; i < 400 && !done; i++) { scene.update(1 / 60); scene.draw(g, i / 60); }
+      const pts = gestureFor(scene, kind, g);
+      if (pts) {
+        scene.onDown(pts[0]);
+        for (let i = 1; i < pts.length; i++) scene.onMove(pts[i]);
+        scene.onUp();
+      }
+      step(400);
     }
   } catch (e) { fail('scene ' + type + '/' + kind + ' diff=' + diff, e); return null; }
   if (!done) fail('scene ' + type + '/' + kind, '未在 6 秒内结算');

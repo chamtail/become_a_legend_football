@@ -61,10 +61,11 @@ window.BL = window.BL || {};
     h.push('<div class="dim2 mt6">灰色为体力与状态影响后的实际发挥值。</div>');
     h.push('</div></div>');
 
-    h.push('<div class="panel"><div class="panel-title">比赛方式</div><div class="row">');
-    h.push('<button class="btn primary" id="btn-go" style="flex:1;padding:12px">进入球场（亲手操作高光）</button>');
-    h.push('<button class="btn" id="btn-auto" style="flex:0 0 auto">快速模拟比赛结果</button>');
-    h.push('</div><div class="dim2 mt6">快速模拟会根据能力自动判定所有高光场景，适合想快速推进赛季。</div></div>');
+    h.push('<div class="dim2 mt6">快速模拟会根据能力自动判定所有高光场景，适合想快速推进赛季。</div>');
+    h.push('<div class="action-bar"><div class="row">');
+    h.push('<button class="btn primary" id="btn-go" style="flex:1;padding:13px">进入球场（亲手操作高光）</button>');
+    h.push('<button class="btn" id="btn-auto" style="flex:0 0 auto">快速模拟</button>');
+    h.push('</div></div></div>');
 
     var node = UI.el(h.join(''));
     node.querySelector('#btn-go').addEventListener('click', function () { UI.startMatch(false); });
@@ -172,7 +173,7 @@ window.BL = window.BL || {};
         BL.Match.applyScene(m, step, res2);
         board();
         descEl.innerHTML = '第 ' + step.minute + "' " + SCENE_NAME[type] + '：<b class="' + (res2.quality >= 1 ? 'green' : 'red') + '">' + res2.text + '</b>';
-        setTimeout(function () { UI.matchStep(m, node, canvas, board, descEl, titleEl, attrEl, quick); }, 380);
+        setTimeout(function () { UI.matchStep(m, node, canvas, board, descEl, titleEl, attrEl, quick); }, 200);
       }
     });
   };
@@ -251,7 +252,7 @@ window.BL = window.BL || {};
       });
     h.push('</div></div>');
 
-    h.push('<div class="panel center"><button class="btn primary" id="btn-next" style="padding:11px 30px">继续</button></div>');
+    h.push('<div class="action-bar"><div class="panel center"><button class="btn primary" id="btn-next" style="padding:12px 30px;width:100%">继续</button></div></div>');
 
     var node = UI.el(h.join(''));
     node.querySelector('#btn-next').addEventListener('click', function () { UI.advanceWeek(); });
@@ -339,11 +340,11 @@ window.BL = window.BL || {};
           '<span class="pill ' + (o.str > St.club().str ? 'g' : 'y') + '">' + (o.str > St.club().str ? '更强' : '相当') + '</span></div>');
       });
       h2.push('</div>');
-      h2.push('<div class="btn-col mt6"><button class="btn wide" id="btn-stay">留在 ' + St.club().name + '</button></div>');
-      h2.push('<div class="dim2 mt6">点击报价即可加盟。</div></div>');
+      h2.push('<div class="dim2 mt6">点击报价即可加盟。</div>');
+      h2.push('<div class="action-bar"><button class="btn wide" id="btn-stay" style="padding:12px">留在 ' + St.club().name + '</button></div></div>');
     } else {
       h2.push('<div class="panel"><div class="panel-title">转会窗口</div><div class="dim2">本赛季没有收到报价。用更好的表现吸引豪门的注意吧。</div>');
-      h2.push('<div class="btn-col mt10"><button class="btn primary wide" id="btn-stay">进入下赛季</button></div></div>');
+      h2.push('<div class="action-bar"><button class="btn primary wide" id="btn-stay" style="padding:12px">进入下赛季</button></div></div>');
     }
     h.push(h2.join(''));
 
