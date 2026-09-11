@@ -56,7 +56,7 @@ window.BL = window.BL || {};
     start: function (canvas, scene, hooks) {
       Run.stop();
       Run.canvas = canvas; Run.g = canvas.getContext('2d');
-      canvas.width = P.CW; canvas.height = P.CH;
+      canvas.width = P.CW * P.SCALE; canvas.height = P.CH * P.SCALE;
       Run.g.imageSmoothingEnabled = false;
       Run.scene = scene; Run.hooks = hooks;
       Run.running = true; Run.time = 0; Run.last = 0;
@@ -96,11 +96,17 @@ window.BL = window.BL || {};
       var sc = Run.scene, g = Run.g;
       if (!sc) return;
       if (sc.update) sc.update(dt, Run.time);
-      g.clearRect(0, 0, P.CW, P.CH);
-      g.save(); g.translate(-P.VX, -P.VY);
+      var S = P.SCALE;
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, P.CW * S, P.CH * S);
+      /* 世界层：SCALE 倍渲染 + 视野偏移，逻辑坐标完全不变 */
+      g.setTransform(S, 0, 0, S, -P.VX * S, -P.VY * S);
       if (sc.draw) sc.draw(g, Run.time);
-      g.restore();
+      /* UI 层：同样 SCALE 倍，但不偏移，继续用 200x124 的 UI 坐标，
+         于是计时条 / 结算横幅 / 提示文字也自动变成高分辨率 */
+      g.setTransform(S, 0, 0, S, 0, 0);
       if (sc.drawOverlay) sc.drawOverlay(g, Run.time);
+      g.setTransform(1, 0, 0, 1, 0, 0);
       Run.raf = requestAnimationFrame(Run.frame);
     },
 
@@ -208,8 +214,8 @@ window.BL = window.BL || {};
     };
     s.drawOverlay = function (g) {
       if (s.phase === 'draw' && !s.locked && s.tip) {
-        P.rect(g, 0, P.CH - 22, P.CW, 14, 'rgba(4,10,14,0.6)');
-        P.text(g, s.tip, 4, P.CH - 19, '#e8f2e8', 8);
+        P.rect(g, 0, P.CH - 18, P.CW, 11, 'rgba(4,10,14,0.62)');
+        P.text(g, s.tip, 4, P.CH - 16, '#e8f2e8', 6.5);
       }
       s.drawTimer(g);
       s.drawResult(g);
@@ -220,18 +226,18 @@ window.BL = window.BL || {};
       g.fillStyle = 'rgba(0,0,0,0.6)';
       g.fillRect(0, 0, P.CW, P.CH);
       var col = r.quality >= 2 ? '#ffe066' : r.quality === 1 ? '#57cc72' : '#ff7b7b';
-      P.text(g, S.qualityLabel(r.quality), P.CW / 2, 26, col, 20, 'center');
-      P.text(g, r.text, P.CW / 2, 54, '#ffffff', 10, 'center');
-      if (r.detail) P.text(g, r.detail, P.CW / 2, 70, '#b9c9d8', 8, 'center');
-      P.text(g, '点击继续', P.CW / 2, P.CH - 18, '#7f93a8', 8, 'center');
+      P.text(g, S.qualityLabel(r.quality), P.CW / 2, 28, col, 17, 'center');
+      P.text(g, r.text, P.CW / 2, 54, '#ffffff', 9, 'center');
+      if (r.detail) P.text(g, r.detail, P.CW / 2, 69, '#b9c9d8', 7, 'center');
+      P.text(g, '点击继续', P.CW / 2, P.CH - 17, '#7f93a8', 6.5, 'center');
     };
     s.drawStartHint = function (g) {
       if (s.phase !== 'draw') return;
       if (!s.started && s.ball) {
         P.zone(g, s.ball.x, s.ball.y, 8, '#ffe066', s.t, true);
-        P.text(g, '按住这里起手', s.ball.x + 12, s.ball.y - 4, '#ffe066', 8);
+        P.text(g, '按住这里起手', s.ball.x, s.ball.y - 20, '#ffe066', 6.5, 'center');
       }
-      if (s.startWarn > 0) P.text(g, '起手要靠近球！', s.ball.x, s.ball.y - 20, '#ff7b7b', 10, 'center');
+      if (s.startWarn > 0) P.text(g, '起手要靠近球！', s.ball.x, s.ball.y - 20, '#ff7b7b', 8, 'center');
     };
     return s;
   };
@@ -243,7 +249,7 @@ window.BL = window.BL || {};
     var s = S.Base({
       type: 'shoot', title: '射门机会', attr: 'shooting',
       diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.5 + skill * 1.5, tip: '从球出发划出射门轨迹 → 终点落在黄色光圈内'
+      timeLimit: 2.5 + skill * 1.5, tip: '从球出发划出射门轨迹，终点落在黄圈内'
     });
     s.ball = ball;
     s.keeper = { x: 239, y: 80, amp: 15 + diff * 7, spd: 0.9 + diff * 1.1, ph: U.rnd(0, 6), diveY: 80, dived: false, reach: 0 };
@@ -357,7 +363,7 @@ window.BL = window.BL || {};
     var s = S.Base({
       type: 'pass', title: '传球选择', attr: 'passing',
       diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.3 + skill * 1.4, tip: '划出传球路线 → 终点落在蓝色接球圈上'
+      timeLimit: 2.3 + skill * 1.4, tip: '划出传球路线，终点落在蓝色接球圈'
     });
     s.ball = ball;
 

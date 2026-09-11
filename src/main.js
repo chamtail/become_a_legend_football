@@ -8,7 +8,7 @@
   /* 调试：单场景预览 */
   UI.screens.devscene = function (params) {
     var h = ['<div class="panel"><div class="panel-title">场景调试 · ' + params.type + '<span class="right">#dev=' + params.type + '</span></div>'];
-    h.push('<div class="canvas-shell"><canvas class="pitch" id="pitch" width="200" height="124"></canvas></div>');
+    h.push('<div class="canvas-shell"><canvas class="pitch" id="pitch" width="400" height="248"></canvas></div>');
     h.push('<div class="scene-desc" id="scene-desc">划出轨迹试试看</div></div>');
     h.push('<div class="panel"><div class="panel-title">参数</div><div class="row">' +
       [['shoot', '射门'], ['pass', '传球'], ['dribble', '盘带'], ['defend', '防守']].map(function (t) {

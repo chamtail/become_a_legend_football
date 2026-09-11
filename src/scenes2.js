@@ -25,7 +25,7 @@ window.BL = window.BL || {};
     var s = S.Base({
       type: 'dribble', title: '盘带突破', attr: 'dribbling',
       diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.2 + skill * 1.1 + pace * 0.9, tip: '划出跑动路线 → 绕开红色抢断圈，终点落在黄区'
+      timeLimit: 2.2 + skill * 1.1 + pace * 0.9, tip: '划出跑动路线，绕开红色抢断圈到黄区'
     });
     s.ball = start;
     s.me = { x: start.x, y: start.y };
@@ -97,7 +97,7 @@ window.BL = window.BL || {};
     s.draw = function (g) {
       P.pitch(g);
       P.zone(g, s.target.x, s.target.y, s.target.r, '#ffe066', s.t, true);
-      P.text(g, '禁区', s.target.x - 10, s.target.y - s.target.r - 12, '#ffe066', 8);
+      P.text(g, '禁区', s.target.x - 9, s.target.y - s.target.r - 11, '#ffe066', 7);
       /* 抢断范围 */
       s.defs.forEach(function (d) {
         g.strokeStyle = s.anim ? 'rgba(224,85,85,0.9)' : 'rgba(224,85,85,0.55)';
@@ -127,7 +127,7 @@ window.BL = window.BL || {};
     var s = S.Base({
       type: 'defend', title: '防守拦截', attr: 'defending',
       diff: diff, skill: skill, kit: cfg.kit, oppKit: cfg.oppKit, skin: cfg.skin, hair: cfg.hair,
-      timeLimit: 2.1 + pace * 0.9, tip: '划出拦截路线 → 在他前进的路线上截住他'
+      timeLimit: 2.1 + pace * 0.9, tip: '划出拦截路线，在他前进路线上截住他'
     });
     s.ball = cfg.ball || { x: U.rnd(110, 152), y: U.rnd(40, 120) };
     s.me = { x: s.ball.x, y: s.ball.y };

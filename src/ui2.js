@@ -91,7 +91,7 @@ window.BL = window.BL || {};
     h.push('<div class="team away"><span>' + UI.esc(m.opp.name) + '</span><span class="kit" style="background:' + m.opp.kit[0] + '"></span></div>');
     h.push('</div>');
     /* 画布 */
-    h.push('<div class="canvas-shell"><canvas class="pitch" id="pitch" width="200" height="124"></canvas>');
+    h.push('<div class="canvas-shell"><canvas class="pitch" id="pitch" width="400" height="248"></canvas>');
     h.push('<div class="scene-hud"><div class="ttl" id="scene-title">准备中</div><div class="tmr" id="scene-attr"></div></div>');
     h.push('</div>');
     h.push('<div class="scene-desc" id="scene-desc">比赛即将开始……</div>');
