@@ -23,7 +23,20 @@ window.BL = window.BL || {};
     }
   };
 
-  var SAVE_KEY = 'bl_save_v1';
+  /* 存档 key：GitHub Pages 上同一用户的多个项目共享 user.github.io 这个 origin，
+     因此用部署路径做后缀隔离，避免不同项目互相覆盖存档。
+     本地 file:// 打开时保持原始 key，移动文件夹不会丢档。 */
+  var SAVE_KEY = (function () {
+    var base = 'bl_save_v1';
+    try {
+      if (typeof location !== 'undefined' && location.pathname &&
+          (location.protocol === 'http:' || location.protocol === 'https:')) {
+        var seg = location.pathname.replace(/[^a-zA-Z0-9]/g, '').slice(-24);
+        if (seg) base += ':' + seg;
+      }
+    } catch (err) { /* ignore */ }
+    return base;
+  })();
 
   var St = BL.State = {
     S: null,

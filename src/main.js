@@ -51,11 +51,12 @@
     });
 
     if (dev) {
-      /* 调试模式：构造一个测试球员，但不写入存档 */
+      /* 调试模式：构造一个测试球员，且绝不写入存档
+         （注意：必须在 newGame 之前屏蔽 save，newGame 内部会调用一次 save） */
+      St.save = function () {};
       St.newGame({ name: '测试球员', pos: 'ST', attrs: { shooting: 72, passing: 66, dribbling: 70, defending: 58, pace: 74, physical: 68 }, clubId: 'gron' });
       St.S.player.look = { skin: '#e8b48a', hair: '#2a1d16' };
       St.S.weekDone = false;
-      St.save = function () {};
       if (dev === 'hub' || dev === 'menu' || dev === 'create' || dev === 'prematch' || dev === 'seasonend' || dev === 'retire') {
         UI.go(dev);
       } else if (dev === 'postmatch') {

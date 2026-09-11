@@ -91,6 +91,33 @@ tools/selftest.js   无浏览器自检
 
 ---
 
+## 部署到 GitHub Pages
+
+这个项目是**纯静态**的，可以直接用 Pages 托管（已验证：无构建步骤、无 ES module、
+无外部 CDN / 字体 / 图片、所有引用都是相对路径、文件名大小写与引用完全一致）。
+
+```bash
+git init
+git add .
+git commit -m "成为传奇：像素风足球生涯模拟"
+git branch -M main
+git remote add origin https://github.com/<你的用户名>/<仓库名>.git
+git push -u origin main
+```
+
+然后在仓库页面：**Settings → Pages → Build and deployment**
+- Source 选 `Deploy from a branch`
+- Branch 选 `main`，目录选 `/ (root)`
+- 保存后等 1 分钟左右，访问 `https://<你的用户名>.github.io/<仓库名>/`
+
+仓库根目录已经放了 `.nojekyll`，跳过 Jekyll 处理，构建更快也不会漏文件。
+
+**注意**
+- 存档在 localStorage，作用域是 origin。在 Pages 上所有项目共享 `<用户名>.github.io`，
+  所以存档 key 会自动带上部署路径后缀做隔离；本地 `file://` 打开时仍用原始 key。
+- 通过 Pages 访问时可以用 `#dev=hub` 之类的调试入口，调试模式**不会写入存档**。
+- 想用自定义域名或改成 `<用户名>.github.io` 根仓库部署都没问题，相对路径不依赖子目录。
+
 ## 自检
 
 ```
