@@ -34,8 +34,15 @@ body{
   line-height:1.5;
   -webkit-font-smoothing:none;
   overflow:hidden;
+  overscroll-behavior:none;   /* 防止移动端下拉刷新打断划轨迹 */
 }
-#app{display:flex;flex-direction:column;height:100vh;max-width:1100px;margin:0 auto;padding:8px;gap:8px}
+#app{
+  display:flex;flex-direction:column;
+  height:100vh;                                  /* 老浏览器回退 */
+  height:100dvh;                                 /* 移动端：跟随地址栏/工具栏的展开收起 */
+  max-width:1100px;margin:0 auto;padding:8px;gap:8px;
+  padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px));  /* iPhone 底部横条 */
+}
 .hidden{display:none !important}
 
 /* ---------- 顶栏 ---------- */
@@ -55,7 +62,7 @@ body{
 .topstat .v.good{color:var(--green2)} .topstat .v.warn{color:var(--yellow)} .topstat .v.bad{color:var(--red)}
 
 /* ---------- 主区域 ---------- */
-#screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding-right:2px}
+#screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding-right:2px;overscroll-behavior:contain}
 #screen::-webkit-scrollbar{width:10px}
 #screen::-webkit-scrollbar-track{background:var(--bg2)}
 #screen::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--bg2)}
@@ -76,8 +83,6 @@ body{
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .grid2>.panel,.grid3>.panel{margin-bottom:0}
-@media (max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
-
 /* ---------- 按钮 ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -143,7 +148,7 @@ body{
 .scoreboard .sc{font-size:26px;font-weight:700;letter-spacing:4px;color:var(--yellow);text-shadow:2px 2px 0 #000;min-width:104px;text-align:center}
 .scoreboard .sc small{font-size:10px;color:var(--dim);letter-spacing:1px;display:block}
 .canvas-shell{position:relative;border:3px solid var(--line);box-shadow:0 4px 0 var(--shadow);background:#0a0f14;line-height:0}
-canvas.pitch{display:block;width:100%;height:auto;max-height:56vh;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:crosshair;background:#0d1a12}
+canvas.pitch{display:block;width:100%;height:auto;max-height:56vh;max-height:52dvh;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:crosshair;background:#0d1a12}
 .scene-hud{
   position:absolute;left:0;right:0;top:0;padding:6px 8px;display:flex;justify-content:space-between;
   align-items:flex-start;pointer-events:none;font-size:11px;letter-spacing:1px;
@@ -207,3 +212,55 @@ hr.sep{border:0;border-top:1px dashed var(--line);margin:8px 0}
 canvas.avatar{width:72px;height:72px;image-rendering:pixelated;border:2px solid var(--line);background:#0a0f14;flex:0 0 auto}
 .fade{animation:fin .18s ease-out}
 @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+ *  移动端适配
+ *  必须放在样式表最后：媒体查询不增加优先级，同优先级下
+ *  后出现的规则才生效，放在前面会被基础规则覆盖。
+ * ============================================================ */
+@media (max-width:720px){
+  /* 布局 */
+  .grid2{grid-template-columns:1fr}            /* 面板改为单列 */
+  .grid3{grid-template-columns:repeat(3,1fr)}  /* 数字统计保持三列 */
+  .acts{grid-template-columns:1fr 1fr}         /* 每周安排两列，避免页面长到划不到底 */
+
+  /* 触控目标 */
+  .btn{padding:11px 14px}
+  .btn.sm{padding:8px 8px}
+  .statline{gap:6px;margin:6px 0}
+
+  /* 顶栏瘦身 */
+  #topbar{padding:5px 8px;gap:8px}
+  .brand-sub{display:none}
+  .brand-text{font-size:15px;letter-spacing:1px}
+  .brand-mark{font-size:16px}
+  .topstats{gap:8px}
+  .topstat .k{font-size:8px;letter-spacing:0}
+  .topstat .v{font-size:12px}
+  #hintbar{font-size:9px;padding:3px 6px}
+  #screen{padding-bottom:8px}
+
+  /* 比赛界面 */
+  .scoreboard{padding:5px 8px;gap:6px}
+  .scoreboard .team{font-size:12px}
+  .scoreboard .sc{font-size:20px;min-width:74px;letter-spacing:2px}
+  .scene-hud{font-size:10px}
+  .scene-desc{font-size:11px}
+  .timeline{max-height:76px}
+  .legend{display:none}                        /* 图例在手机上太占地方 */
+
+  /* 其它 */
+  .canvas-shell{box-shadow:0 2px 0 var(--shadow)}
+  .panel{padding:8px}
+  .panel-title{margin:-8px -8px 8px -8px}
+  .modal{padding:10px}
+}
+
+/* 不支持 dvh 的内核（旧版 Chrome / 旧版 iOS WebView / 部分 App 内置浏览器）
+   仍然会有 100vh 底部被工具栏遮挡的问题，这里给内容区留出安全余量，
+   保证最后一个按钮总能被滚上来。支持 dvh 的浏览器不会命中这段。 */
+@supports not (height: 100dvh){
+  @media (max-width:720px){
+    #screen{padding-bottom:64px}
+  }
+}

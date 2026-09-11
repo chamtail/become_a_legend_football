@@ -231,12 +231,12 @@ window.BL = window.BL || {};
       node.querySelector('#pool').textContent = POOL - spent();
       var box = node.querySelector('#attrbox');
       box.innerHTML = BL.ATTRS.map(function (a) {
-        return '<div class="statline" style="grid-template-columns:52px 1fr 30px 30px 30px">' +
+        return '<div class="statline" style="grid-template-columns:48px 1fr 26px 38px 38px">' +
           '<span class="nm">' + a.name + '</span>' +
           '<div class="bar"><i style="width:' + attrs[a.key] + '%;background:' + a.color + '"></i></div>' +
           '<span class="vl" style="color:' + a.color + '">' + attrs[a.key] + '</span>' +
-          '<button class="btn sm" data-a="' + a.key + '" data-d="-1" style="padding:2px 7px">-</button>' +
-          '<button class="btn sm" data-a="' + a.key + '" data-d="1" style="padding:2px 7px">+</button>' +
+          '<button class="btn sm" data-a="' + a.key + '" data-d="-1" style="padding:7px 0;width:100%">−</button>' +
+          '<button class="btn sm" data-a="' + a.key + '" data-d="1" style="padding:7px 0;width:100%">+</button>' +
           '</div>';
       }).join('');
       node.querySelector('#pv-ovr').textContent = '综合 ' + recomputeOvr();
@@ -403,7 +403,7 @@ window.BL = window.BL || {};
 
     /* 本周安排 */
     h.push('<div class="panel"><div class="panel-title">本周安排<span class="right" id="act-state">' + (s.weekDone ? '已完成' : '未安排') + '</span></div>');
-    h.push('<div class="grid3" style="gap:6px" id="acts">');
+    h.push('<div class="grid3 acts" style="gap:6px" id="acts">');
     BL.ACTIVITIES.forEach(function (a) {
       h.push('<button class="btn sm" data-act="' + a.key + '"' + (s.weekDone ? ' disabled' : '') + ' style="flex-direction:column;align-items:flex-start;padding:6px 8px;line-height:1.35">' +
         '<span>' + a.icon + ' ' + a.name + '</span>' +
