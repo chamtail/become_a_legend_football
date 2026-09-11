@@ -73,8 +73,11 @@
     }
 
     UI.screenEl = document.getElementById('screen');
+    var verEl = document.getElementById('ver');
+    if (verEl) verEl.addEventListener('click', function () { UI.versionModal(); });
     St.load();            /* 有存档就先读进内存，主菜单才能显示生涯概况 */
     UI.go('menu');
+    UI.maybeShowUpdateBar();   /* 静默检查是否有新版本部署 */
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

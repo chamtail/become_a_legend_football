@@ -6,7 +6,8 @@ let bad = [];
 /* 1. index.html 里引用的资源必须与磁盘上的文件名大小写完全一致 */
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1])
-  .filter(u => !/^(https?:)?\/\//.test(u));
+  .filter(u => !/^(https?:)?\/\//.test(u))
+  .map(u => u.split('?')[0].split('#')[0]);   // 去掉 ?v= 缓存击穿参数后再比对文件名
 console.log('index.html 引用 ' + refs.length + ' 个本地资源:');
 refs.forEach(u => {
   const parts = u.split('/');

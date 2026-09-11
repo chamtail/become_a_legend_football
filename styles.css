@@ -67,9 +67,22 @@ body{
 #screen::-webkit-scrollbar-track{background:var(--bg2)}
 #screen::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--bg2)}
 #hintbar{
-  flex:0 0 auto;background:var(--panel);border:2px solid var(--line);padding:4px 10px;
-  font-size:11px;color:var(--dim);text-align:center;letter-spacing:1px;
+  flex:0 0 auto;background:var(--panel);border:2px solid var(--line);padding:4px 8px;
+  font-size:11px;color:var(--dim);letter-spacing:1px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
 }
+#hint-text{flex:1 1 auto;text-align:center}
+#ver{
+  flex:0 0 auto;color:var(--dim2);font-size:10px;letter-spacing:1px;white-space:nowrap;
+  cursor:pointer;border:2px solid transparent;padding:0 5px;
+}
+#ver:hover{color:var(--green2);border-color:var(--line)}
+#update-bar{
+  background:#3a2f10;border:2px solid var(--yellow);box-shadow:0 3px 0 var(--shadow);
+  color:var(--yellow);padding:6px 10px;font-size:12px;text-align:center;
+  cursor:pointer;letter-spacing:1px;flex:0 0 auto;
+}
+#update-bar:hover{background:#4d3e15}
 
 /* ---------- 面板 ---------- */
 .panel{background:var(--panel);border:2px solid var(--line);box-shadow:0 3px 0 var(--shadow);padding:10px;margin-bottom:10px}

@@ -5,6 +5,15 @@ window.BL = window.BL || {};
 (function (BL) {
   'use strict';
 
+  /* ---------------- 版本 ----------------
+     改版本号请用 node tools/bump.js <版本号> "说明"，它会同步更新：
+     src/data.js 的 BL.VERSION、version.json、index.html 里所有 ?v= 缓存击穿参数 */
+  BL.VERSION = {
+    num: '0.5.0',
+    date: '2026-09-11',
+    note: '版本号显示 + 新版本检测；含渲染 2x、移动端适配、刷新崩溃修复'
+  };
+
   /* ---------------- 属性 ---------------- */
   BL.ATTRS = [
     { key: 'shooting',  name: '射门', abbr: 'SHT', color: '#ff6b6b', tip: '射门容错更大，门将更难扑救' },

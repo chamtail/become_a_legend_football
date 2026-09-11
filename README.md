@@ -82,6 +82,8 @@ src/ui.js           界面：主菜单 / 创建球员 / 生涯主界面 / 事件
 src/ui2.js          界面：赛前 / 比赛 / 赛后 / 赛季结算 / 退役
 src/main.js         启动入口
 tools/selftest.js   无浏览器自检
+version.json        线上版本号（前端拉它做新版本检测）
+tools/bump.js       统一改版本号（data.js / version.json / index.html 的 ?v=）
 ```
 
 ### 相机与坐标
@@ -98,6 +100,25 @@ tools/selftest.js   无浏览器自检
 输入换算始终是「CSS 像素 → 视野单位 → 世界坐标」，与 SCALE 无关。
 
 ---
+
+## 版本
+
+界面上有两处版本号，用来确认自己玩的是不是最新部署：
+
+- **主菜单标题下方**：`版本 v0.5.0 · 2026-09-11`
+- **右下角常驻**：`v0.5.0`，点它可以打开版本信息并**检查更新**
+
+启动时会静默 `fetch('version.json')` 比对线上版本，发现更新会在顶部挂一条「发现新版本」横条，点一下强制刷新。
+
+改版本号请用脚本，它会同步三处，避免「界面上显示的版本」和「实际加载的资源」对不上：
+
+```bash
+node tools/bump.js 0.6.0 "这次改了什么"
+```
+
+会更新 `src/data.js` 的 `BL.VERSION`、`version.json`、以及 `index.html` 里全部 `?v=` 参数。
+`?v=` 是**缓存击穿**：版本一变资源 URL 就变，绕过 GitHub Pages 的 CDN 缓存
+（否则你刷新了，浏览器可能还是拿旧的 JS/CSS，看起来像"没更新"）。
 
 ## 部署到 GitHub Pages
 

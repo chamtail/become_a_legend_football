@@ -51,6 +51,70 @@ window.BL = window.BL || {};
     layer.classList.add('hidden'); layer.innerHTML = '';
   };
 
+  /* ---------------- 版本 ---------------- */
+  UI.versionText = function () { return 'v' + BL.VERSION.num; };
+
+  UI.refreshVersionLabel = function () {
+    var el = document.getElementById('ver');
+    if (el) el.textContent = UI.versionText();
+  };
+
+  /* 强制重新加载：换掉 index.html 的 URL，避免拿到缓存里的旧页面 */
+  UI.hardReload = function () {
+    try { location.href = location.pathname + '?v=' + Date.now(); }
+    catch (e) { location.reload(); }
+  };
+
+  /* 拉取 version.json（带时间戳绕过 CDN 缓存）比对版本 */
+  UI.checkVersion = function (cb) {
+    cb = cb || function () {};
+    if (typeof fetch !== 'function') { cb(null); return; }
+    if (typeof location === 'undefined' || (location.protocol !== 'http:' && location.protocol !== 'https:')) { cb(null); return; }
+    try {
+      fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { cb(d && d.version ? d : null); })
+        .catch(function () { cb(null); });
+    } catch (e) { cb(null); }
+  };
+
+  UI.versionModal = function () {
+    var v = BL.VERSION;
+    UI.modal({
+      title: '版本信息',
+      body: '<p>当前版本 <b class="green">v' + v.num + '</b>　<span class="dim2">' + v.date + '</span></p>' +
+            '<p class="dim2">' + UI.esc(v.note || '') + '</p>' +
+            '<div class="dim2 mt6" id="ver-check">正在检查更新……</div>',
+      actions: [
+        { label: '强制刷新页面', cls: 'primary', onClick: function () { UI.hardReload(); } },
+        { label: '关闭' }
+      ]
+    });
+    UI.checkVersion(function (remote) {
+      var box = document.getElementById('ver-check');
+      if (!box) return;
+      if (!remote) { box.innerHTML = '无法检查更新（本地文件打开或离线）。'; return; }
+      if (String(remote.version) === String(v.num)) { box.innerHTML = '<span class="green">已是最新版本</span>'; return; }
+      box.innerHTML = '<span class="yellow">发现新版本 v' + remote.version + '</span>';
+      var b = UI.el('<button class="btn sm" style="margin-left:8px">立即更新</button>');
+      b.addEventListener('click', function () { UI.hardReload(); });
+      box.appendChild(b);
+    });
+  };
+
+  /* 启动时静默检查，有新版本就在顶部挂一条提示 */
+  UI.maybeShowUpdateBar = function () {
+    UI.checkVersion(function (remote) {
+      if (!remote || String(remote.version) === String(BL.VERSION.num)) return;
+      if (document.getElementById('update-bar')) return;
+      var app = document.getElementById('app');
+      if (!app) return;
+      var bar = UI.el('<div id="update-bar">发现新版本 <b>v' + remote.version + '</b>（当前 v' + BL.VERSION.num + '）· 点击此处刷新</div>');
+      bar.addEventListener('click', function () { UI.hardReload(); });
+      app.insertBefore(bar, app.firstChild);
+    });
+  };
+
   /* ---------------- 顶栏 ---------------- */
   UI.topbar = function () {
     var bar = document.getElementById('topstats');
@@ -83,6 +147,7 @@ window.BL = window.BL || {};
       UI.cur = { name: 'menu', params: {} };
     }
     var fn = UI.screens[UI.cur.name] || UI.screens.menu;
+    UI.refreshVersionLabel();
     UI.screenEl.innerHTML = '';
     var node = fn(UI.cur.params);
     node.classList.add('fade');
@@ -117,6 +182,7 @@ window.BL = window.BL || {};
     h.push('<div style="font-size:44px;letter-spacing:10px;color:#57cc72;text-shadow:4px 4px 0 #08240f, 0 0 22px rgba(87,204,114,.35)">成为传奇</div>');
     h.push('<div class="dim2" style="letter-spacing:8px;margin-top:6px">B E C O M E &nbsp; A &nbsp; L E G E N D</div>');
     h.push('<div class="dim" style="margin-top:14px;font-size:12px;line-height:1.9">从青训营的无名少年，到世界足球先生。<br>每周安排训练与生活，每场比赛在关键时刻亲手划出决定命运的轨迹。</div>');
+    h.push('<div class="dim2 mt10">版本 <b class="green">v' + BL.VERSION.num + '</b> · ' + BL.VERSION.date + '　<span style="opacity:.7">点右下角版本号可检查更新</span></div>');
     h.push('</div>');
 
     h.push('<div class="grid2">');
